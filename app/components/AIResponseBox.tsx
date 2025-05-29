@@ -4,13 +4,15 @@ import { Mic, MicOff, Send } from "lucide-react";
 import VoiceInput from "../components/VoiceInput";
 import AIResponseHandler from "./AIResponseHandler";
 interface AIResponseBoxProps {
+  userInput: string;
+  setUserInput: (input: string) => void;
   response: string;
   isTyping: boolean;
   onComplete: () => void;
   videoId?: string;
   videoTime?: number;
 }
-export default function AIResponseBox({ response, isTyping, onComplete, videoId, videoTime }: AIResponseBoxProps) {
+export default function AIResponseBox({ userInput, setUserInput, response, isTyping, onComplete, videoId, videoTime }: AIResponseBoxProps) {
   const [displayedResponse, setDisplayedResponse] = useState("");
   const [responseIndex, setResponseIndex] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -58,7 +60,7 @@ export default function AIResponseBox({ response, isTyping, onComplete, videoId,
       {/* AI Response Handler for processing with video context */}
       <div className='mt-4'>
         <AIResponseHandler
-          userInput={response}
+          userInput={userInput}
           isWorking={isWorking}
           setIsWorking={setIsWorking}
           onResponseStart={() => {
