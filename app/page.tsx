@@ -31,10 +31,17 @@ export default function Home() {
   }
 
   const handleReset = () => {
-    setAppState("initial")
-    setUserInput("")
-    setAiResponse("")
+  // 🛑 Stop Guruji from speaking 
+  console.log("Resetting Guruji...",typeof window);
+  if (typeof window !== "undefined") {
+    window.speechSynthesis.cancel();
   }
+
+  setAppState("initial");
+  setUserInput("");
+  setAiResponse("");
+};
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 transition-colors duration-300">

@@ -1,13 +1,50 @@
 "use client"
 
-import { useState } from "react"
+import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect } from "react"
 
 interface YouTubePlayerProps {
   videoId: string
 }
 
-export default function YouTubePlayer({ videoId }: YouTubePlayerProps) {
+export interface YouTubePlayerHandle {
+  pauseVideo: () => void;
+}
+
+const YouTubePlayer = forwardRef<YouTubePlayerHandle, YouTubePlayerProps>(({ videoId }, ref) => {
   const [isLoaded, setIsLoaded] = useState(false)
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const playerRef = useRef<any>(null)
+
+  useImperativeHandle(ref, () => ({
+    pauseVideo: () => {
+      if (playerRef.current) {
+        playerRef.current.pauseVideo();
+      }
+    }
+  }))
+
+  useEffect(() => {
+    // Load YouTube IFrame API if not already loaded
+    if (!(window as any).YT) {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.body.appendChild(tag);
+    } else {
+      createPlayer();
+    }
+    (window as any).onYouTubeIframeAPIReady = createPlayer;
+    // eslint-disable-next-line
+  }, [videoId]);
+
+  function createPlayer() {
+    if (iframeRef.current && !(playerRef.current)) {
+      playerRef.current = new (window as any).YT.Player(iframeRef.current, {
+        events: {
+          onReady: () => setIsLoaded(true)
+        }
+      });
+    }
+  }
 
   return (
     <div className="relative w-full max-w-6xl mx-auto">
@@ -17,15 +54,20 @@ export default function YouTubePlayer({ videoId }: YouTubePlayerProps) {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
         )}
-        <iframe
-          src={`https://www.youtube.com/embed/${videoId}?autoplay=0&rel=0&modestbranding=1`}
-          title="YouTube video player"
-          frameBorder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          className="w-full h-full"
-          onLoad={() => setIsLoaded(true)}
-        />
+        <div style={{ width: '100%', height: '100%' }}>
+          <div id={`youtube-player-${videoId}`}></div>
+          <iframe
+            ref={iframeRef}
+            id={`youtube-player-iframe-${videoId}`}
+            src={`https://www.youtube.com/embed/${videoId}?enablejsapi=1&autoplay=0&rel=0&modestbranding=1`}
+            title="YouTube video player"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="w-full h-full"
+            style={{ pointerEvents: 'auto' }}
+          />
+        </div>
       </div>
 
       {/* Video Info */}
@@ -39,4 +81,8 @@ export default function YouTubePlayer({ videoId }: YouTubePlayerProps) {
       </div>
     </div>
   )
-}
+})
+
+YouTubePlayer.displayName = "YouTubePlayer"
+
+export default YouTubePlayer
