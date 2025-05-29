@@ -27,13 +27,14 @@ export interface QuizResponse {
 export async function fetchQuizByVideoId(
 	videoId: string
 ): Promise<QuizResponse> {
-	const baseURL = "https://literate-macaque-cute.ngrok-free.app";
-	const endpoint = `/api/questions/videos/${videoId}`;
+	const baseURL = "https://8f76-103-222-252-210.ngrok-free.app/";
+	const endpoint = `api/questions/videos/${videoId}`;
 
 	const res = await fetch(`${baseURL}${endpoint}`, {
 		method: "GET",
 		headers: {
 			"Content-Type": "application/json",
+			"ngrok-skip-browser-warning": "69420",
 		},
 		next: { revalidate: 60 }, // optional
 	});
