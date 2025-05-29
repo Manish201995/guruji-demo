@@ -201,60 +201,25 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 					{
 						// Update notes in real-time
 						onNotesUpdate: (notes) => {
-							console.log("Notes updated:", notes);
 							setResponse(notes);
 						},
 						// Update voiceover in real-time
 						onVoiceoverUpdate: (voiceover) => {
-							// Process the updated voiceover text for sentence detection and speech
-							// processVoiceoverUpdate(voiceover);
+							// Only process the first voiceover update for speaking
+							if (!synthesizer.current) {
+								speakResponse(voiceover);
+							}
+							// Optionally, you can still update UI here if needed
 						},
 						// Handle completion
 						onComplete: (finalResponse) => {
-							console.log(
-								"Final response received:",
-								finalResponse
-							);
-
-							// Format the final response for context storage
 							const formattedResponse = `---HINGLISH_EXPLANATION---\n${finalResponse.voiceover}\n\n---ENGLISH_NOTES---\n${finalResponse.notes}`;
-
-							// Add AI response to context (store the full response for context)
-							contextManager.addAssistantMessage(
-								formattedResponse
-							);
-
-							speakResponse(finalResponse.voiceover);
+							contextManager.addAssistantMessage(formattedResponse);
 							setIsLoading(false);
-
-							// Process any remaining text in the buffer
-							// if (sentenceBuffer.trim() !== '') {
-							//     // If the buffer doesn't end with a sentence-ending punctuation, add one
-							//     let finalBuffer = sentenceBuffer;
-							//     if (!finalBuffer.match(/[.!?]$/)) {
-							//         finalBuffer += '.';
-							//     }
-							//
-							//     // Add the final buffer to the queue
-							//     setSpeechQueue(prevQueue => [...prevQueue, finalBuffer]);
-							//
-							//     // Clear the buffer
-							//     setSentenceBuffer('');
-							//
-							//     // Start processing the queue if not already processing
-							//     if (!isProcessingQueue && !isSpeaking) {
-							//         processNextInQueue();
-							//     }
-							// } else if (!isSpeaking && speechQueueRef.current.length === 0) {
-							//     // If not speaking and no items in the queue, call onResponseEnd
-							//     onResponseEnd();
-							// }
 						},
 						// Handle errors
 						onError: (error: any) => {
-							setError(
-								`Failed to generate response: ${error.message}`
-							);
+							setError(`Failed to generate response: ${error.message}`);
 							setIsLoading(false);
 							onResponseEnd();
 						},

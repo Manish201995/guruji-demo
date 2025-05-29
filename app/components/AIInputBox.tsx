@@ -64,9 +64,9 @@ export default function AIInputBox({
 
 	const handleSpeechRecognized = useCallback(
 		(text: string) => {
-			setInputText(text);
+			setInputText(text); // Show recognized text in the textbox
 			setIsRecording(false);
-			onInputComplete(text);
+			onInputComplete(text); // Trigger response rendering
 		},
 		[onInputComplete]
 	);
