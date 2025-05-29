@@ -7,11 +7,13 @@ import VoiceInput from "./VoiceInput";
 interface AIInputBoxProps {
 	isListening: boolean;
 	onInputComplete: (input: string) => void;
+	onMicClick?: () => void;
 }
 
 export default function AIInputBox({
 	isListening,
 	onInputComplete,
+	onMicClick,
 }: AIInputBoxProps) {
 	const [inputText, setInputText] = useState("");
 	const [isRecording, setIsRecording] = useState(false);
@@ -41,6 +43,7 @@ export default function AIInputBox({
 	}, [isRecording]);
 
 	const handleMicClick = () => {
+		if (onMicClick) onMicClick();
 		setIsRecording((prev) => !prev);
 		setError(null);
 	};

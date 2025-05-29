@@ -46,11 +46,18 @@ export default function Home() {
 		}, 2000);
 	};
 
-	const handleReset = () => {
-		setAppState("initial");
-		setUserInput("");
-		setAiResponse("");
-	};
+const handleReset = () => {
+  // 🛑 Stop Guruji from speaking 
+  console.log("Resetting Guruji...",typeof window);
+  if (typeof window !== "undefined") {
+    window.speechSynthesis.cancel();
+  }
+
+  setAppState("initial");
+  setUserInput("");
+  setAiResponse("");
+};
+
 
 	// Handle video selection
 	const handleVideoChange = (video: VideoData) => {
