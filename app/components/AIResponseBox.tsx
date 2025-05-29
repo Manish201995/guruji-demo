@@ -36,6 +36,9 @@ export default function AIResponseBox({ userInput, setUserInput, response, isTyp
       return () => clearTimeout(timer);
     }
   }, [isTyping, response, responseIndex, onComplete]);
+  // Only mount AIResponseHandler when response is empty and isTyping is true (i.e., new question)
+  const shouldShowHandler = isTyping && responseIndex === 0 && displayedResponse === "";
+
   return (
     <div className='transform transition-all duration-500 ease-out animate-in slide-in-from-bottom-4'>
       <div className='bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6'>
@@ -59,21 +62,23 @@ export default function AIResponseBox({ userInput, setUserInput, response, isTyp
       </div>
       {/* AI Response Handler for processing with video context */}
       <div className='mt-4'>
-        <AIResponseHandler
-          userInput={userInput}
-          isWorking={isWorking}
-          setIsWorking={setIsWorking}
-          onResponseStart={() => {
-            setIsWorking(true);
-          }}
-          onResponseEnd={() => {
-            setIsWorking(false);
-          }}
-          setIsSpeaking={setIsSpeaking}
-          isSpeaking={isSpeaking}
-          videoId={videoId}
-          videoTime={videoTime}
-        />
+        {shouldShowHandler && (
+          <AIResponseHandler
+            userInput={userInput}
+            isWorking={isWorking}
+            setIsWorking={setIsWorking}
+            onResponseStart={() => {
+              setIsWorking(true);
+            }}
+            onResponseEnd={() => {
+              setIsWorking(false);
+            }}
+            setIsSpeaking={setIsSpeaking}
+            isSpeaking={isSpeaking}
+            videoId={videoId}
+            videoTime={videoTime}
+          />
+        )}
         {/* Guruji is speaking animation */}
         {isSpeaking && (
           <div className='mt-4 text-center text-sm text-purple-600 dark:text-purple-300 animate-pulse'>
