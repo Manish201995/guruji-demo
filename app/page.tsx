@@ -61,8 +61,8 @@ export default function Home() {
 		setUserInput(""); // Reset user input
 		setAiResponse(""); // Reset AI response
 	};
-
-	return (
+const currentTime = parseFloat(localStorage.getItem('videoCurrentTime') || '0');
+ return (
 		<div className='min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 transition-colors duration-300'>
 			<div className='px-4 py-8'>
 				<div className='grid grid-cols-1 md:grid-cols-5 gap-8 items-start'>
@@ -119,11 +119,11 @@ export default function Home() {
 						)}
 
 						{/* Show MCQQuiz only when AIInput/Response is NOT visible */}
-
 						{appState === "initial" && (
 							<MCQQuiz
 								videoId={selectedVideoId}
 								videoTime={videoTime}
+								// question={""}
 								pauseVideo={() =>
 									playerRef.current?.pauseVideo()
 								}

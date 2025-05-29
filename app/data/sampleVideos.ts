@@ -7,11 +7,10 @@ export interface VideoData {
 // Sample videos with their IDs and titles
 export const sampleVideos: VideoData[] = [
   {
-    id: "0peBVJuZXKE",
-    title: "What is Refractive Index ? CLASS X : CBSE / ICSE : Refraction Of Light 02\n",
-    description: "What will you get in the Lakshya Batch?\n" +
-        "(1) Complete Class 12th + JEE Mains/ NEET syllabus - Targeting 95% in Board Exams and Selection in JEE MAINS / NEET  with a Strong Score under Direct Guidance of Alakh Pandey."
-  }
+    id: "rLmVC53EwVo",
+    title: "VECTOR in 87 Minutes || Full Chapter Revision || Class 11th JEE",
+    description :"We present \"Vector in 87 Minutes: Full Chapter Revision for Class 11th JEE\". Covering all essential concepts, calculations, and problem-solving techniques related to vectors, this tutorial is tailored specifically to help you excel in the Class 11th Joint Entrance Examination (JEE)."}
+
 ];
 
 // Function to get a video by ID

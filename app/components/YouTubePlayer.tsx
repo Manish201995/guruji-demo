@@ -16,6 +16,7 @@ interface YouTubePlayerProps {
     showAskButton?: boolean;
     onAsk?: () => void;
     onVideoChange?: (video: VideoData) => void;
+    onTimeUpdate?: (currentTime: number) => void;
 }
 
 export type YouTubePlayerRef = {
@@ -31,7 +32,7 @@ declare global {
 }
 
 const YouTubePlayer = forwardRef<YouTubePlayerRef, YouTubePlayerProps>(
-    ({videoId, onProgressChange, showAskButton = true, onAsk, onVideoChange}, ref) => {
+    ({videoId, onProgressChange, showAskButton = true, onAsk, onVideoChange, onTimeUpdate}, ref) => {
         const [isLoaded, setIsLoaded] = useState(false);
         const [currentVideoId, setCurrentVideoId] = useState(videoId);
         const [isPlaying, setIsPlaying] = useState(false);
@@ -125,6 +126,10 @@ const YouTubePlayer = forwardRef<YouTubePlayerRef, YouTubePlayerProps>(
                                                         duration
                                                     );
                                                 }
+                                                if (onTimeUpdate) {
+                                                    console.log('YouTubePlayer sending time update:', newTime);
+                                                    onTimeUpdate(newTime);
+                                                }
                                             }, 1000);
                                     } else {
                                         setIsPlaying(false);
@@ -146,6 +151,14 @@ const YouTubePlayer = forwardRef<YouTubePlayerRef, YouTubePlayerProps>(
                     playerInstanceRef.current.destroy();
             };
         }, [videoId]);
+
+
+       useEffect(() => {
+	if (currentTime > 0) {
+		const roundedTime = Math.round(currentTime);
+		localStorage.setItem("videoCurrentTime", roundedTime.toString());
+	}
+}, [currentTime]);
 
         const playVideo = () => {
             playerInstanceRef.current?.playVideo();
@@ -181,6 +194,7 @@ const YouTubePlayer = forwardRef<YouTubePlayerRef, YouTubePlayerProps>(
             const s = Math.floor(t % 60);
             return `${m}:${s < 10 ? "0" : ""}${s}`;
         };
+
 
         return (
             <div className='relative w-full max-w-6xl mx-auto'>

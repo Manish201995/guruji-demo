@@ -34,73 +34,82 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
 		if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
 			throw new Error("Browser does not support audio input");
 		}
-		try {
-			// Create the audio configuration for the microphone
-			const audioConfig =
-				SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
 
-			// Create the speech recognizer using the manager
-			const newRecognizer = speechSDKManager.createSpeechRecognizer(
-				audioConfig
-			) as ExtendedSpeechRecognizer;
+		// First request microphone permission explicitly
+		navigator.mediaDevices.getUserMedia({ audio: true })
+			.then(() => {
+				try {
+					// Create the audio configuration for the microphone
+					const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
 
-			// Add a property to track if the recognizer is being disposed
-			newRecognizer.isDisposing = false;
+					// Create the speech recognizer using the manager
+					const newRecognizer = speechSDKManager.createSpeechRecognizer(
+						audioConfig
+					) as ExtendedSpeechRecognizer;
 
-			// Set up event handlers
-			newRecognizer.recognized = (_, event) => {
-				console.log("Speech recognized:", event.result.text);
-				if (
-					event.result.reason ===
-					SpeechSDK.ResultReason.RecognizedSpeech
-				) {
-					const recognizedText = event.result.text.trim();
-					if (recognizedText) {
-						// Verify the speaker if enrolled
-						if (isEnrolled) {
-							speakerManager
-								.identifySpeaker(audioConfig)
-								.then((isValidSpeaker) => {
-									if (isValidSpeaker) {
-										onSpeechRecognized(recognizedText);
-									} else {
-										console.warn("Speaker not recognized");
-									}
-								})
-								.catch((error) => {
-									console.error(
-										"Error identifying speaker:",
-										error
-									);
-									// Default to accepting the input in case of error
+					// Add a property to track if the recognizer is being disposed
+					newRecognizer.isDisposing = false;
+
+					// Set up event handlers
+					newRecognizer.recognized = (_, event) => {
+						console.log("Speech recognized:", event.result.text);
+						if (
+							event.result.reason ===
+							SpeechSDK.ResultReason.RecognizedSpeech
+						) {
+							const recognizedText = event.result.text.trim();
+							if (recognizedText) {
+								// Verify the speaker if enrolled
+								if (isEnrolled) {
+									speakerManager
+										.identifySpeaker(audioConfig)
+										.then((isValidSpeaker) => {
+											if (isValidSpeaker) {
+												onSpeechRecognized(recognizedText);
+											} else {
+												console.warn("Speaker not recognized");
+											}
+										})
+										.catch((error) => {
+											console.error(
+												"Error identifying speaker:",
+												error
+											);
+											// Default to accepting the input in case of error
+											onSpeechRecognized(recognizedText);
+										});
+								} else {
+									// If no speaker profile is enrolled, accept all input
 									onSpeechRecognized(recognizedText);
-								});
-						} else {
-							// If no speaker profile is enrolled, accept all input
-							onSpeechRecognized(recognizedText);
+								}
+							}
 						}
-					}
-				}
-			};
+					};
 
-			newRecognizer.canceled = (_, event) => {
-				if (event.reason === SpeechSDK.CancellationReason.Error) {
-					setError(`Speech recognition error: ${event.errorDetails}`);
+					newRecognizer.canceled = (_, event) => {
+						if (event.reason === SpeechSDK.CancellationReason.Error) {
+							setError(`Speech recognition error: ${event.errorDetails}`);
+						}
+						setIsWorking(false);
+					};
+
+					setRecognizer(newRecognizer);
+					setError(null);
+				} catch (err) {
+					console.error("Error initializing speech recognizer:", err);
+					setError(
+						`Failed to initialize speech recognition: ${
+							err instanceof Error ? err.message : String(err)
+						}`
+					);
+					setIsWorking(false);
 				}
+			})
+			.catch((err) => {
+				console.error("Error accessing microphone:", err);
+				setError("Failed to access microphone. Please ensure microphone permissions are granted.");
 				setIsWorking(false);
-			};
-
-			setRecognizer(newRecognizer);
-			setError(null);
-		} catch (err) {
-			console.error("Error initializing speech recognizer:", err);
-			setError(
-				`Failed to initialize speech recognition: ${
-					err instanceof Error ? err.message : String(err)
-				}`
-			);
-			setIsWorking(false);
-		}
+			});
 	}, [onSpeechRecognized, setIsWorking, isEnrolled]);
 
 	// Start or stop the speech recognition based on isListening
@@ -113,66 +122,60 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
 			return;
 		}
 
-		if (isWorking && !isSpeaking) {
-			recognizer.startContinuousRecognitionAsync(
-				() => console.log("Speech recognition started"),
-				(error) => {
-					console.error("Error starting speech recognition:", error);
-					setError(`Error starting speech recognition: ${error}`);
-					setIsWorking(false);
+		const startRecognition = async () => {
+			try {
+				if (isWorking && !isSpeaking) {
+					await recognizer.startContinuousRecognitionAsync();
+					console.log("Speech recognition started");
 				}
-			);
-		} else {
-			if (!recognizer.isDisposing) {
-				recognizer.isDisposing = true;
-				recognizer.stopContinuousRecognitionAsync(
-					() => {
-						console.log("Speech recognition stopped");
-						recognizer.isDisposing = false;
-					},
-					(error) => {
-						console.error(
-							"Error stopping speech recognition:",
-							error
-						);
-						recognizer.isDisposing = false;
-					}
-				);
+			} catch (error) {
+				console.error("Error starting speech recognition:", error);
+				setError(`Error starting speech recognition: ${error}`);
+				setIsWorking(false);
 			}
+		};
+
+		const stopRecognition = async () => {
+			if (!recognizer.isDisposing) {
+				try {
+					recognizer.isDisposing = true;
+					await recognizer.stopContinuousRecognitionAsync();
+					console.log("Speech recognition stopped");
+					recognizer.isDisposing = false;
+				} catch (error) {
+					console.error("Error stopping speech recognition:", error);
+					recognizer.isDisposing = false;
+				}
+			}
+		};
+
+		// Start or stop recognition
+		if (isWorking && !isSpeaking) {
+			startRecognition();
+		} else {
+			stopRecognition();
 		}
 
 		// Cleanup function
 		return () => {
-			if (recognizer) {
-				if (!recognizer.isDisposing) {
-					recognizer.isDisposing = true;
-					recognizer.stopContinuousRecognitionAsync(
-						() => {
-							console.log("Speech recognition stopped (cleanup)");
-							// Properly dispose of the recognizer when component unmounts
-							recognizer.close();
-							setRecognizer(null);
-						},
-						(error) => {
-							console.error(
-								"Error stopping speech recognition (cleanup):",
-								error
-							);
-							// Still try to close even if stopping failed
-							recognizer.close();
-							setRecognizer(null);
-						}
-					);
-				} else {
-					// If already disposing, just close it directly
-					console.log("Recognizer already disposing, Ignoring it");
-					// console.log('Recognizer already disposing, closing directly');
-					// recognizer.close();
-					// setRecognizer(null);
+			const cleanup = async () => {
+				if (recognizer && !recognizer.isDisposing) {
+					try {
+						recognizer.isDisposing = true;
+						await recognizer.stopContinuousRecognitionAsync();
+						console.log("Speech recognition stopped (cleanup)");
+						recognizer.close();
+						setRecognizer(null);
+					} catch (error) {
+						console.error("Error stopping speech recognition (cleanup):", error);
+						recognizer.close();
+						setRecognizer(null);
+					}
 				}
-			}
+			};
+			cleanup();
 		};
-	}, [recognizer, isWorking, initializeRecognizer, setIsWorking]);
+	}, [recognizer, isWorking, initializeRecognizer, setIsWorking, isSpeaking]);
 
 	// Check if a speaker profile is enrolled
 	useEffect(() => {
