@@ -11,6 +11,7 @@ import { contextManager } from "@/utils/ContextManager";
 import { config } from "@/utils/config";
 import { speechSDKManager } from "@/utils/SpeechSDKManager";
 import { openAIAgent } from "../ai/OpenAIAgents";
+import { fetchVideoContext, VideoContextResponse } from "../fetcher/fetchVideoContext";
 
 
 export interface VideoMetadata {
@@ -33,6 +34,8 @@ interface AIResponseHandlerProps {
 	onResponseEnd: () => void;
 	setIsSpeaking: (isSpeaking: boolean) => void;
 	isSpeaking: boolean;
+	videoId?: string;
+	videoTime?: number;
 }
 
 const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
@@ -43,6 +46,8 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 	onResponseEnd,
 	isSpeaking,
 	setIsSpeaking,
+	videoId,
+	videoTime,
 }) => {
 	const [response, setResponse] = useState<string>("");
 	// Buffer for collecting text until a complete sentence is detected
@@ -66,6 +71,20 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 
 	const synthesizer = useRef<SpeechSDK.SpeechSynthesizer | null>(null);
 
+	// Current video ID and duration - these come from props or use defaults
+	const currentVideoId = useRef<string>(videoId || "sample-video-id");
+	const currentVideoTime = useRef<number>(videoTime || 0);
+
+	// Update refs when props change
+	useEffect(() => {
+		if (videoId) {
+			currentVideoId.current = videoId;
+		}
+		if (videoTime !== undefined) {
+			currentVideoTime.current = videoTime;
+		}
+	}, [videoId, videoTime]);
+
 	// Process user input and generate AI response
 	useEffect(() => {
 		if (!userInput) return;
@@ -76,10 +95,61 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 				setError(null);
 				onResponseStart();
 
-				// Add system message to context
-				// Initialize with the system message
+				// Get video context information from the API
+				// This fetches relevant information about the video including subject, class, exam,
+				// and transcripts based on the current video ID and user's query
+				let videoContextData: VideoContextResponse;
+				try {
+					videoContextData = await fetchVideoContext({
+						videoId: currentVideoId.current,
+						queryText: userInput,
+						duration: `${currentVideoTime.current}`
+					});
+					console.log("Video context data fetched successfully:", videoContextData);
+				} catch (error) {
+					console.error("Error fetching video context:", error);
+					// Fallback to mock data if fetching fails
+					// In a production environment, you might want to show an error message to the user
+					videoContextData = {
+						videoId: currentVideoId.current,
+						subject: mockVideoMeataData.subject,
+						exam: mockVideoMeataData.exam,
+						class: mockVideoMeataData.sClass,
+						topicTranscripts: [],
+						contextTranscripts: []
+					};
+				}
+
+				// Find the current transcript based on the video's current playback time
+				// This helps identify what topic is currently being taught in the video
+				const currentTranscript = videoContextData.contextTranscripts.find(
+					transcript => 
+						currentVideoTime.current >= transcript.start && 
+						currentVideoTime.current < (transcript.start + transcript.duration)
+				);
+
+				console.log("Current transcript:", currentTranscript);
+
+				// Create enhanced video metadata with context information
+				// This includes not just basic info (class, subject, exam) but also
+				// current time, topic, and content from the video
+				const videoMetadata = {
+					sClass: videoContextData.class,
+					subject: videoContextData.subject,
+					exam: videoContextData.exam,
+					currentTime: currentVideoTime.current,
+					currentTopic: currentTranscript?.topic || "Unknown topic",
+					currentContent: currentTranscript?.text || "",
+					contextTranscripts: videoContextData.contextTranscripts
+				};
+
+				// Add enhanced system message to context
+				// This uses the config.systemMessage function with our enhanced videoMetadata
+				// which now includes video context information (current time, topic, content)
+				// The system message will help the AI understand the video context and provide
+				// more relevant and helpful responses to the student's questions
 				contextManager.addPersonalisedSystemMessage(
-					config.systemMessage(mockVideoMeataData).trim()
+					config.systemMessage(videoMetadata).trim()
 				);
 
 				// Add user message to context
