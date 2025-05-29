@@ -36,12 +36,25 @@ export async function fetchQuizByVideoId(
 			"Content-Type": "application/json",
 			"ngrok-skip-browser-warning": "69420",
 		},
-		next: { revalidate: 60 }, // Optional for Next.js
+		next: { revalidate: 60 }, // optional
 	});
 
+	const contentType = res.headers.get("content-type") || "";
+
 	if (!res.ok) {
-		throw new Error(`Failed to fetch quiz for videoId: ${videoId}`);
+		const text = await res.text();
+		console.error("Non-OK response:", text);
+		throw new Error(`Request failed: ${res.status}`);
 	}
 
-	return res.json();
+	if (!contentType.includes("application/json")) {
+		const htmlText = await res.text();
+		console.error("Unexpected HTML response:", htmlText.slice(0, 300)); // Just log a part
+		throw new Error("Expected JSON, but received HTML.");
+	}
+
+	const data = await res.json();
+	return data;
+
+
 }

@@ -19,7 +19,7 @@ export default function MCQQuiz({
 	resumeVideo,
 	onQuizComplete,
 }: MCQQuizProps) {
-	const { data, loading, error } = useQuiz(videoId);
+	const { data, loading, error } = useQuiz();
 	const [current, setCurrent] = useState(0);
 	const [selected, setSelected] = useState<number | null>(null);
 	const [showHint, setShowHint] = useState(false);
@@ -30,7 +30,7 @@ export default function MCQQuiz({
 
 	const question = data?.questions?.[current];
 	const correctAnswerIndex = parseInt(question?.correctAnswer ?? "-1", 10);
-
+console.log(data,"data")
 	useEffect(() => {
 		if (!question || showQuiz) return;
 		if (videoTime >= question.timestamp) {
