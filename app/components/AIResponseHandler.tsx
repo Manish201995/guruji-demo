@@ -133,10 +133,18 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 					console.warn('Failed to retrieve values from localStorage:', error);
 				}
 
+                function formatSecondsToMMSS(seconds: number) {
+                        const mins = Math.floor(seconds / 60);
+                        const secs = Math.floor(seconds % 60);
+                        const formattedMins = String(mins).padStart(2, '0');
+                        const formattedSecs = String(secs).padStart(2, '0');
+                        return `${formattedMins}.${formattedSecs}`;
+                }
+
 				const requestVideoContext = {
 					videoId: storedVideoId,
 					queryText: userInput,
-					duration: storedVideoTime
+					duration: formatSecondsToMMSS(parseInt(storedVideoTime))
 				}
 					console.log("Fetching video context data for video:", requestVideoContext);
 					videoContextData = await fetchVideoContext(requestVideoContext);
