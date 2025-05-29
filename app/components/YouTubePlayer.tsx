@@ -7,6 +7,8 @@ import {
 	useState,
 	useEffect,
 } from "react";
+import VideoSelector from "./VideoSelector";
+import {sampleVideos, VideoData} from "../data/sampleVideos";
 
 export interface YouTubePlayerRef {
 	pauseVideo: () => void;
@@ -18,12 +20,23 @@ interface YouTubePlayerProps {
 	videoId: string;
 	showAskButton?: boolean;
 	onAsk?: () => void;
+	onVideoChange?: (video: VideoData) => void;
 }
 
 const YouTubePlayer = forwardRef<YouTubePlayerRef, YouTubePlayerProps>(
-	({ videoId, showAskButton, onAsk }, ref) => {
+	({ videoId, showAskButton, onAsk, onVideoChange }, ref) => {
 		const [isLoaded, setIsLoaded] = useState(false);
+		const [currentVideoId, setCurrentVideoId] = useState(videoId);
 		const iframeRef = useRef<HTMLIFrameElement>(null);
+
+		// Get the current video data from the sampleVideos
+		const [currentVideo, setCurrentVideo] = useState<VideoData | undefined>(
+			() => {
+				// Find the video in sampleVideos by ID
+				const video = sampleVideos.find(v => v.id === videoId);
+				return video || sampleVideos[0]; // Default to first video if not found
+			}
+		);
 
 		useImperativeHandle(ref, () => ({
 			pauseVideo() {
@@ -45,8 +58,27 @@ const YouTubePlayer = forwardRef<YouTubePlayerRef, YouTubePlayerProps>(
 			},
 		}));
 
+ 	// Update currentVideoId and currentVideo when videoId prop changes
+ 	useEffect(() => {
+ 		setCurrentVideoId(videoId);
+ 		const video = sampleVideos.find(v => v.id === videoId);
+ 		if (video) {
+ 			setCurrentVideo(video);
+ 		}
+ 	}, [videoId]);
+
+ 	// Handle video selection
+ 	const handleVideoSelect = (video: VideoData) => {
+ 		setCurrentVideoId(video.id);
+ 		setCurrentVideo(video);
+ 		setIsLoaded(false); // Reset loading state for new video
+ 		if (onVideoChange) {
+ 			onVideoChange(video);
+ 		}
+ 	};
+
 		// Append enablejsapi=1 for JS control
-		const src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&modestbranding=1&rel=0`;
+		const src = `https://www.youtube.com/embed/${currentVideoId}?enablejsapi=1&modestbranding=1&rel=0`;
 
 		useEffect(() => {
 			// Required to initialize postMessage control
@@ -73,15 +105,22 @@ const YouTubePlayer = forwardRef<YouTubePlayerRef, YouTubePlayerProps>(
 					/>
 				</div>
 
+				{/* Video Selector */}
+				<div className="mt-4 mb-4">
+					<VideoSelector 
+						selectedVideoId={currentVideoId}
+						onVideoSelect={handleVideoSelect}
+					/>
+				</div>
+
 				{/* Video Info and Ask Guruji Button */}
 				<div className='mt-4 px-2 flex justify-between items-center'>
 					<div className='flex flex-col justify-center'>
 						<h2 className='text-xl font-semibold text-slate-800 dark:text-slate-200 mb-2'>
-							Learning Video: Advanced Concepts
+							{currentVideo?.title || "Learning Video"}
 						</h2>
 						<p className='text-slate-600 dark:text-slate-400'>
-							Watch this video to understand the key concepts,
-							then ask Guruji any questions you have!
+							{currentVideo?.description || "Watch this video to understand the key concepts, then ask Guruji any questions you have!"}
 						</p>
 					</div>
 

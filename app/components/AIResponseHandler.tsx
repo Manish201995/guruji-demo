@@ -34,6 +34,8 @@ interface AIResponseHandlerProps {
 	onResponseEnd: () => void;
 	setIsSpeaking: (isSpeaking: boolean) => void;
 	isSpeaking: boolean;
+	videoId?: string;
+	videoTime?: number;
 }
 
 const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
@@ -44,6 +46,8 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 	onResponseEnd,
 	isSpeaking,
 	setIsSpeaking,
+	videoId,
+	videoTime,
 }) => {
 	const [response, setResponse] = useState<string>("");
 	// Buffer for collecting text until a complete sentence is detected
@@ -67,30 +71,19 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 
 	const synthesizer = useRef<SpeechSDK.SpeechSynthesizer | null>(null);
 
-	// Current video ID and duration - these would typically come from your video player
-	const currentVideoId = useRef<string>("sample-video-id");
-	const currentVideoDuration = useRef<string>("600"); // 10 minutes in seconds
-	const currentVideoTime = useRef<number>(0);
+	// Current video ID and duration - these come from props or use defaults
+	const currentVideoId = useRef<string>(videoId || "sample-video-id");
+	const currentVideoTime = useRef<number>(videoTime || 0);
 
-	// In a real implementation, this function would be called by the video player
-	// whenever the current time changes
-	const updateVideoTime = (time: number) => {
-		currentVideoTime.current = time;
-		console.log(`Video time updated: ${time}`);
-	};
-
-	// For demonstration purposes, update the time every second
-	// In a real implementation, this would be replaced by events from the video player
+	// Update refs when props change
 	useEffect(() => {
-		const interval = setInterval(() => {
-			// Simulate video playback by incrementing the time
-			if (currentVideoTime.current < parseInt(currentVideoDuration.current)) {
-				updateVideoTime(currentVideoTime.current + 1);
-			}
-		}, 1000);
-
-		return () => clearInterval(interval);
-	}, []);
+		if (videoId) {
+			currentVideoId.current = videoId;
+		}
+		if (videoTime !== undefined) {
+			currentVideoTime.current = videoTime;
+		}
+	}, [videoId, videoTime]);
 
 	// Process user input and generate AI response
 	useEffect(() => {
@@ -110,7 +103,7 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 					videoContextData = await fetchVideoContext({
 						videoId: currentVideoId.current,
 						queryText: userInput,
-						duration: currentVideoDuration.current
+						duration: `${currentVideoTime.current}`
 					});
 					console.log("Video context data fetched successfully:", videoContextData);
 				} catch (error) {

@@ -5,6 +5,7 @@ import YouTubePlayer, { YouTubePlayerRef } from "./components/YouTubePlayer";
 import MCQQuiz from "./components/MCQQuiz";
 import AIInputBox from "./components/AIInputBox";
 import AIResponseBox from "./components/AIResponseBox";
+import {sampleVideos, VideoData} from "./data/sampleVideos";
 
 type AppState = "initial" | "listening" | "responding" | "complete";
 
@@ -12,19 +13,23 @@ export default function Home() {
 	const [appState, setAppState] = useState<AppState>("initial");
 	const [userInput, setUserInput] = useState("");
 	const [aiResponse, setAiResponse] = useState("");
+	const [selectedVideoId, setSelectedVideoId] = useState(sampleVideos[0].id); // Default video ID
 
   const playerRef = useRef<YouTubePlayerRef>(null);
   const [videoTime, setVideoTime] = useState(0);
+  const currentVideoTimeRef = useRef(0); // Ref to track current video time for AI component
 
   // Use YouTube iframe message loop OR interval to track time
   useEffect(() => {
 		const interval = setInterval(() => {
 			// Simulate video time tracking
-			setVideoTime((prev) => prev + 1);
+			const newTime = videoTime + 1;
+			setVideoTime(newTime);
+			currentVideoTimeRef.current = newTime; // Update ref for AI component
 		}, 1000);
 
 		return () => clearInterval(interval);
-  }, []);
+  }, [videoTime]);
 
 	const handleAskGuruji = () => {
 		setAppState("listening");
@@ -47,6 +52,16 @@ export default function Home() {
 		setAiResponse("");
 	};
 
+	// Handle video selection
+	const handleVideoChange = (video: VideoData) => {
+		setSelectedVideoId(video.id);
+		setVideoTime(0); // Reset video time
+		currentVideoTimeRef.current = 0; // Reset current video time ref
+		setAppState("initial"); // Reset app state
+		setUserInput(""); // Reset user input
+		setAiResponse(""); // Reset AI response
+	};
+
 	return (
 		<div className='min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 transition-colors duration-300'>
 			<div className='px-4 py-8'>
@@ -54,9 +69,10 @@ export default function Home() {
 					{/* YouTubePlayer - 60% */}
 					<div className='md:col-span-3 space-y-6 animate-fade-in'>
 						<YouTubePlayer
-							videoId='dQw4w9WgXcQ'
+							videoId={selectedVideoId}
 							showAskButton={appState === "initial"}
 							onAsk={handleAskGuruji}
+							onVideoChange={handleVideoChange}
 						/>
 					</div>
 
@@ -83,6 +99,8 @@ export default function Home() {
 										onComplete={() =>
 											setAppState("complete")
 										}
+										videoId={selectedVideoId}
+										videoTime={currentVideoTimeRef.current}
 									/>
 								)}
 
@@ -103,7 +121,7 @@ export default function Home() {
 						{/* Show MCQQuiz only when AIInput/Response is NOT visible */}
 						{appState === "initial" && (
 							<MCQQuiz
-								videoId='68381e243be252feaa1ffa24'
+								videoId={selectedVideoId}
 								videoTime={videoTime}
 								pauseVideo={() =>
 									playerRef.current?.pauseVideo()
