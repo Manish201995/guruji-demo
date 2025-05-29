@@ -1,260 +1,151 @@
-import React, { useCallback, useEffect, useState } from "react";
+"use client";
+
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as SpeechSDK from "microsoft-cognitiveservices-speech-sdk";
 import { speechSDKManager } from "@/utils/SpeechSDKManager";
 import { speakerManager } from "@/utils/SpeakerManager";
 
-
 interface VoiceInputProps {
-	onSpeechRecognized: (text: string) => void;
-	isWorking: boolean;
-	setIsWorking: (isWorking: boolean) => void;
-	isSpeaking: boolean;
+  onSpeechRecognized: (text: string) => void;
+  isWorking: boolean;
+  setIsWorking: (isWorking: boolean) => void;
+  isSpeaking: boolean;
 }
 
-// Extended type for SpeechRecognizer with isDisposing flag
 interface ExtendedSpeechRecognizer extends SpeechSDK.SpeechRecognizer {
-	isDisposing: boolean;
+  isDisposing: boolean;
+  isClosed: boolean;
 }
 
 const VoiceInput: React.FC<VoiceInputProps> = ({
-	onSpeechRecognized,
-	isWorking: isWorking,
-	setIsWorking: setIsWorking,
-	isSpeaking: isSpeaking,
+  onSpeechRecognized,
+  isWorking,
+  setIsWorking,
+  isSpeaking,
 }) => {
-	const [recognizer, setRecognizer] =
-		useState<ExtendedSpeechRecognizer | null>(null);
-	const [error, setError] = useState<string | null>(null);
-	const [isEnrolled, setIsEnrolled] = useState<boolean>(true);
+  const recognizerRef = useRef<ExtendedSpeechRecognizer | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-	// Initialize the speech recognizer
-	const initializeRecognizer = useCallback(() => {
-		console.log("Initializing speech recognizer");
-		// Check if the browser supports the required APIs
-		if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-			throw new Error("Browser does not support audio input");
-		}
+  const cleanupRecognizer = useCallback(() => {
+    const recognizer = recognizerRef.current;
+    if (recognizer && !recognizer.isDisposing && !recognizer.isClosed) {
+      recognizer.isDisposing = true;
+      recognizer.stopContinuousRecognitionAsync(
+        () => {
+          try {
+            recognizer.close();
+          } catch (err) {
+            console.warn("Recognizer already disposed (stop success)");
+          }
+          recognizer.isClosed = true;
+          recognizerRef.current = null;
+        },
+        (err) => {
+          console.error("Error stopping recognizer (cleanup):", err);
+          try {
+            recognizer.close();
+          } catch (e) {
+            console.warn("Recognizer already disposed (stop error)");
+          }
+          recognizer.isClosed = true;
+          recognizerRef.current = null;
+        }
+      );
+    }
+  }, []);
 
-		// First request microphone permission explicitly
-		navigator.mediaDevices.getUserMedia({ audio: true })
-			.then(() => {
-				try {
-					// Create the audio configuration for the microphone
-					const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+  const initializeRecognizer = useCallback(async () => {
+    await navigator.mediaDevices.getUserMedia({ audio: true });
 
-					// Create the speech recognizer using the manager
-					const newRecognizer = speechSDKManager.createSpeechRecognizer(
-						audioConfig
-					) as ExtendedSpeechRecognizer;
+    const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
+    const newRecognizer = speechSDKManager.createSpeechRecognizer(audioConfig) as ExtendedSpeechRecognizer;
+    newRecognizer.isDisposing = false;
+    newRecognizer.isClosed = false;
 
-					// Add a property to track if the recognizer is being disposed
-					newRecognizer.isDisposing = false;
+    newRecognizer.recognized = (_, event) => {
+      if (event.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
+        const text = event.result.text.trim();
+        if (text) {
+          speakerManager
+            .identifySpeaker(audioConfig)
+            .then((isValid) => {
+              if (isValid) onSpeechRecognized(text);
+              else console.warn("Unverified speaker.");
+            })
+            .catch(() => onSpeechRecognized(text));
+        }
+      }
+    };
 
-					// Set up event handlers
-					newRecognizer.recognized = (_, event) => {
-						console.log("Speech recognized:", event.result.text);
-						if (
-							event.result.reason ===
-							SpeechSDK.ResultReason.RecognizedSpeech
-						) {
-							const recognizedText = event.result.text.trim();
-							if (recognizedText) {
-								// Verify the speaker if enrolled
-								if (isEnrolled) {
-									speakerManager
-										.identifySpeaker(audioConfig)
-										.then((isValidSpeaker) => {
-											if (isValidSpeaker) {
-												onSpeechRecognized(recognizedText);
-											} else {
-												console.warn("Speaker not recognized");
-											}
-										})
-										.catch((error) => {
-											console.error(
-												"Error identifying speaker:",
-												error
-											);
-											// Default to accepting the input in case of error
-											onSpeechRecognized(recognizedText);
-										});
-								} else {
-									// If no speaker profile is enrolled, accept all input
-									onSpeechRecognized(recognizedText);
-								}
-							}
-						}
-					};
+    newRecognizer.canceled = (_, event) => {
+      if (event.reason === SpeechSDK.CancellationReason.Error) {
+        setError(`Speech canceled: ${event.errorDetails}`);
+      }
+      setIsWorking(false);
+    };
 
-					newRecognizer.canceled = (_, event) => {
-						if (event.reason === SpeechSDK.CancellationReason.Error) {
-							setError(`Speech recognition error: ${event.errorDetails}`);
-						}
-						setIsWorking(false);
-					};
+    recognizerRef.current = newRecognizer;
 
-					setRecognizer(newRecognizer);
-					setError(null);
-				} catch (err) {
-					console.error("Error initializing speech recognizer:", err);
-					setError(
-						`Failed to initialize speech recognition: ${
-							err instanceof Error ? err.message : String(err)
-						}`
-					);
-					setIsWorking(false);
-				}
-			})
-			.catch((err) => {
-				console.error("Error accessing microphone:", err);
-				setError("Failed to access microphone. Please ensure microphone permissions are granted.");
-				setIsWorking(false);
-			});
-	}, [onSpeechRecognized, setIsWorking, isEnrolled]);
+    newRecognizer.startContinuousRecognitionAsync(
+      () => {
+        console.log("Speech recognition started");
+        setError(null);
+      },
+      (err) => {
+        console.error("Error starting recognition:", err);
+        setError("Could not start recognition");
+        setIsWorking(false);
+      }
+    );
+  }, [onSpeechRecognized, setIsWorking]);
 
-	// Start or stop the speech recognition based on isListening
-	useEffect(() => {
-		if (!recognizer) {
-			if (isWorking) {
-				initializeRecognizer();
-				console.log("Recognizer not initialized, initializing now");
-			}
-			return;
-		}
+  useEffect(() => {
+    if (isWorking && !recognizerRef.current) {
+      initializeRecognizer().catch((err) => {
+        console.error("Init error:", err);
+        setError("Failed to start microphone.");
+        setIsWorking(false);
+      });
+    } else if (!isWorking) {
+      cleanupRecognizer();
+    }
 
-		const startRecognition = async () => {
-			try {
-				if (isWorking && !isSpeaking) {
-					await recognizer.startContinuousRecognitionAsync();
-					console.log("Speech recognition started");
-				}
-			} catch (error) {
-				console.error("Error starting speech recognition:", error);
-				setError(`Error starting speech recognition: ${error}`);
-				setIsWorking(false);
-			}
-		};
+    return () => {
+      cleanupRecognizer();
+    };
+  }, [isWorking, initializeRecognizer, cleanupRecognizer]);
 
-		const stopRecognition = async () => {
-			if (!recognizer.isDisposing) {
-				try {
-					recognizer.isDisposing = true;
-					await recognizer.stopContinuousRecognitionAsync();
-					console.log("Speech recognition stopped");
-					recognizer.isDisposing = false;
-				} catch (error) {
-					console.error("Error stopping speech recognition:", error);
-					recognizer.isDisposing = false;
-				}
-			}
-		};
+  return (
+    <div className="voice-input">
+      <div className="controls">
+        <button
+          onClick={() => setIsWorking(!isWorking)}
+          className={`mic-button ${isWorking ? "active" : ""}`}
+        >
+          {isWorking ? "Stop" : "Ask"}
+        </button>
 
-		// Start or stop recognition
-		if (isWorking && !isSpeaking) {
-			startRecognition();
-		} else {
-			stopRecognition();
-		}
+        <div className="status-indicator">
+          {isSpeaking ? (
+            <div className="speaking-animation">
+              <div className="speaking-dot"></div>
+              <div className="speaking-dot"></div>
+              <div className="speaking-dot"></div>
+              <span>Speaking...</span>
+            </div>
+          ) : (
+            "🔇"
+          )}
+        </div>
+      </div>
 
-		// Cleanup function
-		return () => {
-			const cleanup = async () => {
-				if (recognizer && !recognizer.isDisposing) {
-					try {
-						recognizer.isDisposing = true;
-						await recognizer.stopContinuousRecognitionAsync();
-						console.log("Speech recognition stopped (cleanup)");
-						recognizer.close();
-						setRecognizer(null);
-					} catch (error) {
-						console.error("Error stopping speech recognition (cleanup):", error);
-						recognizer.close();
-						setRecognizer(null);
-					}
-				}
-			};
-			cleanup();
-		};
-	}, [recognizer, isWorking, initializeRecognizer, setIsWorking, isSpeaking]);
+      {error && <div className="error-message">{error}</div>}
 
-	// Check if a speaker profile is enrolled
-	useEffect(() => {
-		// setIsEnrolled(speakerManager.isProfileEnrolled());
-		// By default, enroll the speaker profile
-		setIsEnrolled(true);
-	}, []);
-
-	// Enroll the speaker profile
-	// const enrollSpeaker = async () => {
-	//   console.log('Enrolling speaker is not working yet');
-	// try {
-	//   console.log('Enrolling speaker');
-	//   // Create the audio configuration for the microphone
-	//   const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
-	//   console.log('Audio config:', audioConfig);
-	//   // Create a new speaker profile if not already created
-	//   if (!speakerManager.isProfileEnrolled()) {
-	//     console.log('Creating new speaker profile');
-	//     await speakerManager.createProfile();
-	//     await speakerManager.enrollProfile(audioConfig);
-	//     setIsEnrolled(true);
-	//   }
-	//   console.log('Speaker profile enrolled');
-	// } catch (err) {
-	//   console.log('Failed to enroll speaker', err)
-	//   setError(`Failed to enroll speaker: ${err instanceof Error ? err.message : String(err)}`);
-	// }
-	// };
-
-	// Reset the speaker profile
-	// const resetSpeaker = async () => {
-	//   try {
-	//     await speakerManager.resetProfile();
-	//     setIsEnrolled(false);
-	//   } catch (err) {
-	//     setError(`Failed to reset speaker: ${err instanceof Error ? err.message : String(err)}`);
-	//   }
-	// };
-
-	function stopAsking() {
-		setIsWorking(false);
-	}
-
-	function startAsking() {
-		setIsWorking(true);
-	}
-
-	return (
-		<div className='voice-input'>
-			<div className='controls'>
-				<button
-					onClick={() => (isWorking ? stopAsking() : startAsking())}
-					className={`mic-button ${isWorking ? "active" : ""}`}
-				>
-					{isWorking ? "Stop" : "Ask"}
-				</button>
-				<div className='status-indicator'>
-					{isSpeaking ? (
-						<div className='speaking-animation'>
-							<div className='speaking-dot'></div>
-							<div className='speaking-dot'></div>
-							<div className='speaking-dot'></div>
-							<span>Speaking...</span>
-						</div>
-					) : (
-						"🔇"
-					)}
-					{/* Remove the current spoken text display since we now have word-level highlighting */}
-				</div>
-			</div>
-
-			{error && <div className='error-message'>{error}</div>}
-
-			<div className='status-indicator'>
-				{isWorking ? "Listening..." : "Not listening"}
-			</div>
-		</div>
-	);
+      <div className="status-indicator">
+        {isWorking ? "Listening..." : "Not listening"}
+      </div>
+    </div>
+  );
 };
 
 export default VoiceInput;

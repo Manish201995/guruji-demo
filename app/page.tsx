@@ -36,21 +36,23 @@ export default function Home() {
 	};
 
 	const handleInputComplete = (input: string) => {
+		console.log("handleInputComplete:", input);
 		setUserInput(input);
 		setAppState("responding");
-		setTimeout(() => {
-			setAiResponse(
-				`Great question! Based on the video content, here's what I understand: "${input}". Let me explain further...`
-			);
-			setAppState("complete");
-		}, 2000);
 	};
 
-	const handleReset = () => {
-		setAppState("initial");
-		setUserInput("");
-		setAiResponse("");
-	};
+const handleReset = () => {
+  // 🛑 Stop Guruji from speaking 
+  console.log("Resetting Guruji...",typeof window);
+  if (typeof window !== "undefined") {
+    window.speechSynthesis.cancel();
+  }
+
+  setAppState("initial");
+  setUserInput("");
+  setAiResponse("");
+};
+
 
 	// Handle video selection
 	const handleVideoChange = (video: VideoData) => {
@@ -99,6 +101,8 @@ const currentTime = parseFloat(localStorage.getItem('videoCurrentTime') || '0');
 										onComplete={() =>
 											setAppState("complete")
 										}
+										userInput={userInput}
+										setUserInput = {setUserInput}
 										videoId={selectedVideoId}
 										videoTime={currentVideoTimeRef.current}
 									/>

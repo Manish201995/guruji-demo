@@ -12,6 +12,7 @@ import { config } from "@/utils/config";
 import { speechSDKManager } from "@/utils/SpeechSDKManager";
 import { openAIAgent } from "../ai/OpenAIAgents";
 import { fetchVideoContext, VideoContextResponse } from "../fetcher/fetchVideoContext";
+import {sampleVideos} from "@/app/data/sampleVideos";
 
 
 export interface VideoMetadata {
@@ -72,22 +73,35 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 	const synthesizer = useRef<SpeechSDK.SpeechSynthesizer | null>(null);
 
 	// Current video ID and duration - these come from props or use defaults
-	const currentVideoId = useRef<string>(videoId || "sample-video-id");
+	const currentVideoId = useRef<string>(videoId || sampleVideos[0].id);
 	const currentVideoTime = useRef<number>(videoTime || 0);
 
-	// Update refs when props change
+	// Update refs when props change and store in localStorage
 	useEffect(() => {
 		if (videoId) {
 			currentVideoId.current = videoId;
+			try {
+				localStorage.setItem('currentVideoId', videoId);
+			} catch (error) {
+				console.warn('Failed to store currentVideoId in localStorage:', error);
+			}
 		}
 		if (videoTime !== undefined) {
 			currentVideoTime.current = videoTime;
+			try {
+				localStorage.setItem('currentVideoTime', videoTime.toString());
+			} catch (error) {
+				console.warn('Failed to store currentVideoTime in localStorage:', error);
+			}
 		}
 	}, [videoId, videoTime]);
 
 	// Process user input and generate AI response
 	useEffect(() => {
-		if (!userInput) return;
+		if (!userInput) {
+			console.log("No user input, skipping response generation");
+			return;
+		}
 
 		const generateResponse = async () => {
 			try {
@@ -100,11 +114,32 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 				// and transcripts based on the current video ID and user's query
 				let videoContextData: VideoContextResponse;
 				try {
-					videoContextData = await fetchVideoContext({
-						videoId: currentVideoId.current,
-						queryText: userInput,
-						duration: `${currentVideoTime.current}`
-					});
+ 				// Get values from localStorage or use current refs as fallback
+				let storedVideoId = currentVideoId.current;
+				let storedVideoTime = `${currentVideoTime.current}`;
+
+				try {
+					const localStorageVideoId = localStorage.getItem('currentVideoId');
+					const localStorageVideoTime = localStorage.getItem('currentVideoTime');
+
+					if (localStorageVideoId) {
+						storedVideoId = localStorageVideoId;
+					}
+
+					if (localStorageVideoTime) {
+						storedVideoTime = localStorageVideoTime;
+					}
+				} catch (error) {
+					console.warn('Failed to retrieve values from localStorage:', error);
+				}
+
+				const requestVideoContext = {
+					videoId: storedVideoId,
+					queryText: userInput,
+					duration: storedVideoTime
+				}
+					console.log("Fetching video context data for video:", requestVideoContext);
+					videoContextData = await fetchVideoContext(requestVideoContext);
 					console.log("Video context data fetched successfully:", videoContextData);
 				} catch (error) {
 					console.error("Error fetching video context:", error);
@@ -123,8 +158,8 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 				// Find the current transcript based on the video's current playback time
 				// This helps identify what topic is currently being taught in the video
 				const currentTranscript = videoContextData.contextTranscripts.find(
-					transcript => 
-						currentVideoTime.current >= transcript.start && 
+					transcript =>
+						currentVideoTime.current >= transcript.start &&
 						currentVideoTime.current < (transcript.start + transcript.duration)
 				);
 
@@ -166,60 +201,25 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 					{
 						// Update notes in real-time
 						onNotesUpdate: (notes) => {
-							console.log("Notes updated:", notes);
 							setResponse(notes);
 						},
 						// Update voiceover in real-time
 						onVoiceoverUpdate: (voiceover) => {
-							// Process the updated voiceover text for sentence detection and speech
-							// processVoiceoverUpdate(voiceover);
+							// Only process the first voiceover update for speaking
+							if (!synthesizer.current) {
+								speakResponse(voiceover);
+							}
+							// Optionally, you can still update UI here if needed
 						},
 						// Handle completion
 						onComplete: (finalResponse) => {
-							console.log(
-								"Final response received:",
-								finalResponse
-							);
-
-							// Format the final response for context storage
 							const formattedResponse = `---HINGLISH_EXPLANATION---\n${finalResponse.voiceover}\n\n---ENGLISH_NOTES---\n${finalResponse.notes}`;
-
-							// Add AI response to context (store the full response for context)
-							contextManager.addAssistantMessage(
-								formattedResponse
-							);
-
-							speakResponse(finalResponse.voiceover);
+							contextManager.addAssistantMessage(formattedResponse);
 							setIsLoading(false);
-
-							// Process any remaining text in the buffer
-							// if (sentenceBuffer.trim() !== '') {
-							//     // If the buffer doesn't end with a sentence-ending punctuation, add one
-							//     let finalBuffer = sentenceBuffer;
-							//     if (!finalBuffer.match(/[.!?]$/)) {
-							//         finalBuffer += '.';
-							//     }
-							//
-							//     // Add the final buffer to the queue
-							//     setSpeechQueue(prevQueue => [...prevQueue, finalBuffer]);
-							//
-							//     // Clear the buffer
-							//     setSentenceBuffer('');
-							//
-							//     // Start processing the queue if not already processing
-							//     if (!isProcessingQueue && !isSpeaking) {
-							//         processNextInQueue();
-							//     }
-							// } else if (!isSpeaking && speechQueueRef.current.length === 0) {
-							//     // If not speaking and no items in the queue, call onResponseEnd
-							//     onResponseEnd();
-							// }
 						},
 						// Handle errors
 						onError: (error: any) => {
-							setError(
-								`Failed to generate response: ${error.message}`
-							);
+							setError(`Failed to generate response: ${error.message}`);
 							setIsLoading(false);
 							onResponseEnd();
 						},
