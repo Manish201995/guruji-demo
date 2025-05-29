@@ -36,14 +36,9 @@ export default function Home() {
 	};
 
 	const handleInputComplete = (input: string) => {
+		console.log("handleInputComplete:", input);
 		setUserInput(input);
 		setAppState("responding");
-		setTimeout(() => {
-			setAiResponse(
-				`Great question! Based on the video content, here's what I understand: "${input}". Let me explain further...`
-			);
-			setAppState("complete");
-		}, 2000);
 	};
 
 const handleReset = () => {
@@ -106,6 +101,8 @@ const handleReset = () => {
 										onComplete={() =>
 											setAppState("complete")
 										}
+										userInput={userInput}
+										setUserInput = {setUserInput}
 										videoId={selectedVideoId}
 										videoTime={currentVideoTimeRef.current}
 									/>

@@ -98,7 +98,10 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 
 	// Process user input and generate AI response
 	useEffect(() => {
-		if (!userInput) return;
+		if (!userInput) {
+			console.log("No user input, skipping response generation");
+			return;
+		}
 
 		const generateResponse = async () => {
 			try {
@@ -135,7 +138,7 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 					queryText: userInput,
 					duration: storedVideoTime
 				}
-					console.log("Fetching video context data for video:", storedVideoId);
+					console.log("Fetching video context data for video:", requestVideoContext);
 					videoContextData = await fetchVideoContext(requestVideoContext);
 					console.log("Video context data fetched successfully:", videoContextData);
 				} catch (error) {
@@ -155,8 +158,8 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 				// Find the current transcript based on the video's current playback time
 				// This helps identify what topic is currently being taught in the video
 				const currentTranscript = videoContextData.contextTranscripts.find(
-					transcript => 
-						currentVideoTime.current >= transcript.start && 
+					transcript =>
+						currentVideoTime.current >= transcript.start &&
 						currentVideoTime.current < (transcript.start + transcript.duration)
 				);
 
