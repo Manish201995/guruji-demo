@@ -19,7 +19,7 @@ export const config = {
         baseURL: 'https://litellm-data.penpencil.co',
         model: 'gpt4o',
     },
-    language: 'hi-IN',
+    language: 'en-IN',
     voiceSpeakerModel: 'hi-IN-MadhurNeural',
     // System message template for GPT-4o as specified in the requirements
     systemMessage: (videoMetadata: any) => {
