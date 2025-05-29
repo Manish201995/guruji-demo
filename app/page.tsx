@@ -101,6 +101,7 @@ export default function Home() {
 						)}
 
 						{/* Show MCQQuiz only when AIInput/Response is NOT visible */}
+
 						{appState === "initial" && (
 							<MCQQuiz
 								videoId='68381e243be252feaa1ffa24'

@@ -8,6 +8,10 @@ interface YouTubePlayerProps {
 	showAskButton?: boolean;
 	onAsk?: () => void;
 }
+export type YouTubePlayerRef = {
+	playVideo: () => void;
+	pauseVideo: () => void;
+};
 
 declare global {
 	interface Window {
