@@ -23,13 +23,14 @@ export interface VideoContextResponse {
 export async function fetchVideoContext(
   request: VideoContextRequest
 ): Promise<VideoContextResponse> {
-  const baseURL = "localhost:8000";
+  const baseURL = "https://e300-103-222-252-210.ngrok-free.app";
   const endpoint = "vector-search";
 
-  const res = await fetch(`http://${baseURL}/${endpoint}`, {
+  const res = await fetch(`${baseURL}/${endpoint}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "ngrok-skip-browser-warning": "69420",
     },
     body: JSON.stringify(request),
     next: { revalidate: 60 }, // Optional for Next.js
