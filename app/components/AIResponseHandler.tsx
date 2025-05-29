@@ -12,6 +12,7 @@ import { config } from "@/utils/config";
 import { speechSDKManager } from "@/utils/SpeechSDKManager";
 import { openAIAgent } from "../ai/OpenAIAgents";
 import { fetchVideoContext, VideoContextResponse } from "../fetcher/fetchVideoContext";
+import {sampleVideos} from "@/app/data/sampleVideos";
 
 
 export interface VideoMetadata {
@@ -72,16 +73,26 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 	const synthesizer = useRef<SpeechSDK.SpeechSynthesizer | null>(null);
 
 	// Current video ID and duration - these come from props or use defaults
-	const currentVideoId = useRef<string>(videoId || "sample-video-id");
+	const currentVideoId = useRef<string>(videoId || sampleVideos[0].id);
 	const currentVideoTime = useRef<number>(videoTime || 0);
 
-	// Update refs when props change
+	// Update refs when props change and store in localStorage
 	useEffect(() => {
 		if (videoId) {
 			currentVideoId.current = videoId;
+			try {
+				localStorage.setItem('currentVideoId', videoId);
+			} catch (error) {
+				console.warn('Failed to store currentVideoId in localStorage:', error);
+			}
 		}
 		if (videoTime !== undefined) {
 			currentVideoTime.current = videoTime;
+			try {
+				localStorage.setItem('currentVideoTime', videoTime.toString());
+			} catch (error) {
+				console.warn('Failed to store currentVideoTime in localStorage:', error);
+			}
 		}
 	}, [videoId, videoTime]);
 
@@ -100,11 +111,32 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 				// and transcripts based on the current video ID and user's query
 				let videoContextData: VideoContextResponse;
 				try {
-					videoContextData = await fetchVideoContext({
-						videoId: currentVideoId.current,
-						queryText: userInput,
-						duration: `${currentVideoTime.current}`
-					});
+ 				// Get values from localStorage or use current refs as fallback
+				let storedVideoId = currentVideoId.current;
+				let storedVideoTime = `${currentVideoTime.current}`;
+
+				try {
+					const localStorageVideoId = localStorage.getItem('currentVideoId');
+					const localStorageVideoTime = localStorage.getItem('currentVideoTime');
+
+					if (localStorageVideoId) {
+						storedVideoId = localStorageVideoId;
+					}
+
+					if (localStorageVideoTime) {
+						storedVideoTime = localStorageVideoTime;
+					}
+				} catch (error) {
+					console.warn('Failed to retrieve values from localStorage:', error);
+				}
+
+				const requestVideoContext = {
+					videoId: storedVideoId,
+					queryText: userInput,
+					duration: storedVideoTime
+				}
+					console.log("Fetching video context data for video:", storedVideoId);
+					videoContextData = await fetchVideoContext(requestVideoContext);
 					console.log("Video context data fetched successfully:", videoContextData);
 				} catch (error) {
 					console.error("Error fetching video context:", error);
