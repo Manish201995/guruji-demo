@@ -22,6 +22,7 @@ export default function AIInputBox({
 	const [error, setError] = useState<string | null>(null);
 	const [isWorking, setIsWorking] = useState(false);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
+	const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
 	useEffect(() => {
 		if (isListening) {
@@ -31,37 +32,62 @@ export default function AIInputBox({
 		}
 	}, [isListening]);
 
-	// Stop listening when isWorking becomes false
+	// Stop recording immediately when isWorking becomes false
 	useEffect(() => {
-		if (!isWorking && isRecording) {
+		if (!isWorking) {
+			console.log("isWorking is false, stopping recording...");
 			setIsRecording(false);
 			setRecordingTime(0);
+			if (recordingTimerRef.current) {
+				clearInterval(recordingTimerRef.current);
+				recordingTimerRef.current = null;
+			}
 		}
-	}, [isWorking, isRecording]);
+	}, [isWorking]);
 
+	// Handle recording timer
 	useEffect(() => {
-		let interval: NodeJS.Timeout;
-		if (isRecording) {
-			interval = setInterval(() => {
+		if (isRecording && isWorking) {
+			recordingTimerRef.current = setInterval(() => {
 				setRecordingTime((prev) => prev + 1);
 			}, 1000);
 		} else {
+			if (recordingTimerRef.current) {
+				clearInterval(recordingTimerRef.current);
+			}
 			setRecordingTime(0);
 		}
-		return () => clearInterval(interval);
-	}, [isRecording]);
+
+		return () => {
+			if (recordingTimerRef.current) {
+				clearInterval(recordingTimerRef.current);
+			}
+		};
+	}, [isRecording, isWorking]);
 
 	const handleMicClick = () => {
+		console.log("Mic clicked, current states:", { isRecording, isWorking });
+		
 		if (onMicClick) onMicClick();
-		const newRecordingState = !isRecording;
-		setIsRecording(newRecordingState);
-		setIsWorking(newRecordingState);
+		
+		if (isRecording || isWorking) {
+			// Stop recording
+			console.log("Stopping recording...");
+			setIsWorking(false);
+			setIsRecording(false);
+		} else {
+			// Start recording
+			console.log("Starting recording...");
+			setIsRecording(true);
+			setIsWorking(true);
+		}
 		setError(null);
 	};
 
 	const handleSubmit = () => {
 		if (inputText.trim()) {
 			// Stop any ongoing recording/listening before submitting
+			console.log("Submitting, stopping recording...");
 			setIsRecording(false);
 			setIsWorking(false);
 			onInputComplete(inputText.trim());
@@ -78,6 +104,7 @@ export default function AIInputBox({
 
 	const handleSpeechRecognized = useCallback(
 		(text: string) => {
+			console.log("Speech recognized, stopping recording...");
 			setInputText(text); // Show recognized text in the textbox
 			setIsRecording(false);
 			setIsWorking(false); // Explicitly stop working when speech is recognized
@@ -87,10 +114,24 @@ export default function AIInputBox({
 	);
 
 	const handleWorkingStateChange = useCallback((working: boolean) => {
+		console.log("Working state changing to:", working);
 		setIsWorking(working);
 		if (!working) {
+			console.log("Working stopped, stopping recording...");
 			setIsRecording(false);
 		}
+	}, []);
+
+	// Force stop recording when component unmounts or gets updated
+	useEffect(() => {
+		return () => {
+			console.log("AIInputBox unmounting, cleaning up...");
+			setIsWorking(false);
+			setIsRecording(false);
+			if (recordingTimerRef.current) {
+				clearInterval(recordingTimerRef.current);
+			}
+		};
 	}, []);
 
 	return (
@@ -194,14 +235,14 @@ export default function AIInputBox({
 			</div>
 
 			{/* Real-Time Voice Input (Powered by Microsoft SDK) */}
-			{isRecording && (
-				<VoiceInput
-					onSpeechRecognized={handleSpeechRecognized}
-					isWorking={isWorking}
-					setIsWorking={handleWorkingStateChange}
-					isSpeaking={isSpeaking}
-				/>
-			)}
+			{/* Always render VoiceInput but control it via isWorking */}
+			<VoiceInput
+				onSpeechRecognized={handleSpeechRecognized}
+				isWorking={isWorking && isRecording}
+				setIsWorking={handleWorkingStateChange}
+				isSpeaking={isSpeaking}
+			/>
 		</div>
 	);
 }
+

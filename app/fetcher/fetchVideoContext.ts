@@ -23,7 +23,7 @@ export interface VideoContextResponse {
 export async function fetchVideoContext(
   request: VideoContextRequest
 ): Promise<VideoContextResponse> {
-  const baseURL = "https://d3d7-2401-4900-1c5b-26cd-f98f-a853-bfb6-4ffc.ngrok-free.app";
+  const baseURL = "https://ed6e-160-202-39-6.ngrok-free.app";
   const endpoint = "vector-search";
 
   const res = await fetch(`${baseURL}/${endpoint}`, {
