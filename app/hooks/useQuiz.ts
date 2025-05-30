@@ -5,7 +5,7 @@ import {
 	QuizResponse,
 } from "../fetcher/fetchQuizByVideoId";
 
-const HARDCODED_VIDEO_ID = "68381e243be252feaa1ffa24";
+const HARDCODED_VIDEO_ID = "6838627867642705b395205e";
 
 export function useQuiz() {
 	const [data, setData] = useState<QuizResponse | null>(null);
@@ -15,10 +15,11 @@ export function useQuiz() {
 	useEffect(() => {
 		setLoading(true);
 		setError(null);
-
+		console.log("Fetching quiz data...");
 		fetchQuizByVideoId(HARDCODED_VIDEO_ID)
 			.then((d)=>{
 				setData(d);
+				console.log("Quiz data fetched:", d);
 			})
 			.catch(setError)
 			.finally(() => setLoading(false));

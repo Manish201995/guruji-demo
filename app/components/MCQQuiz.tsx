@@ -37,7 +37,6 @@ export default function MCQQuiz({
 	const [totalScore, setTotalScore] = useState(0);
 	const [totalQuestionsAnswered, setTotalQuestionsAnswered] = useState(0);
 
-	console.log(data,"data")
 	// Initialize question states when data loads
 	useEffect(() => {
 		if (data?.questions) {

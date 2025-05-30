@@ -117,14 +117,13 @@ export async function fetchQuizByVideoId(
 ): Promise<QuizResponse> {
 	// For development/testing, return sample data immediately
 	// Comment out this block to use the actual API
-	console.log("Using sample quiz data for testing...");
-	return new Promise((resolve) => {
-		setTimeout(() => resolve(SAMPLE_QUIZ_DATA), 500); // Simulate network delay
-	});
+	// console.log("Using sample quiz data for testing...");
+	// return new Promise((resolve) => {
+	// 	setTimeout(() => resolve(SAMPLE_QUIZ_DATA), 500); // Simulate network delay
+	// });
 
 	// Uncomment below for actual API usage
-	/*
-	const baseURL = "https://d3d7-2401-4900-1c5b-26cd-f98f-a853-bfb6-4ffc.ngrok-free.app/";
+	const baseURL = "http://localhost:4000/";
 	const endpoint = `api/questions/videos/${videoId}`;
 
 	const res = await fetch(`${baseURL}${endpoint}`, {
@@ -150,7 +149,6 @@ export async function fetchQuizByVideoId(
 		throw new Error("Expected JSON, but received HTML.");
 	}
 
-	const data = await res.json();
-	return data;
-	*/
+	return await res.json();
+
 }
