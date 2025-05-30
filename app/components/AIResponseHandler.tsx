@@ -11,7 +11,7 @@ import { contextManager } from "@/utils/ContextManager";
 import { config } from "@/utils/config";
 import { speechSDKManager } from "@/utils/SpeechSDKManager";
 import { openAIAgent } from "../ai/OpenAIAgents";
-import { fetchVideoContext, VideoContextResponse } from "../fetcher/fetchVideoContext";
+import {fetchVideoContext, Transcript, VideoContextResponse} from "../fetcher/fetchVideoContext";
 import {sampleVideos} from "@/app/data/sampleVideos";
 
 
@@ -19,12 +19,18 @@ export interface VideoMetadata {
 	sClass: string;
 	subject: string;
 	exam: string;
+	currentTime: string,
+	currentContent: Transcript[],
+	contextTranscripts: Transcript[]
 }
 
 const mockVideoMeataData: VideoMetadata = {
 	sClass: "10th",
 	subject: "Science",
 	exam: "NCERT Board",
+	currentTime: "00:00",
+	currentContent: [],
+	contextTranscripts: []
 };
 
 interface AIResponseHandlerProps {
@@ -37,6 +43,14 @@ interface AIResponseHandlerProps {
 	isSpeaking: boolean;
 	videoId?: string;
 	videoTime?: number;
+}
+
+function formatSecondsToMMSS(seconds: number) {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    const formattedMins = String(mins).padStart(2, '0');
+    const formattedSecs = String(secs).padStart(2, '0');
+    return `${formattedMins}.${formattedSecs}`;
 }
 
 const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
@@ -133,14 +147,6 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 					console.warn('Failed to retrieve values from localStorage:', error);
 				}
 
-                function formatSecondsToMMSS(seconds: number) {
-                        const mins = Math.floor(seconds / 60);
-                        const secs = Math.floor(seconds % 60);
-                        const formattedMins = String(mins).padStart(2, '0');
-                        const formattedSecs = String(secs).padStart(2, '0');
-                        return `${formattedMins}.${formattedSecs}`;
-                }
-
 				const requestVideoContext = {
 					videoId: storedVideoId,
 					queryText: userInput,
@@ -165,25 +171,24 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 
 				// Find the current transcript based on the video's current playback time
 				// This helps identify what topic is currently being taught in the video
-				const currentTranscript = videoContextData.contextTranscripts.find(
-					transcript =>
-						currentVideoTime.current >= transcript.start &&
-						currentVideoTime.current < (transcript.start + transcript.duration)
-				);
+				// const currentTranscript = videoContextData.contextTranscripts.find(
+				// 	transcript =>
+				// 		currentVideoTime.current >= transcript.start &&
+				// 		currentVideoTime.current < (transcript.start + transcript.duration)
+				// );
 
-				console.log("Current transcript:", currentTranscript);
+				console.log("Current transcript:", videoContextData.topicTranscripts);
 
 				// Create enhanced video metadata with context information
 				// This includes not just basic info (class, subject, exam) but also
 				// current time, topic, and content from the video
-				const videoMetadata = {
-					sClass: videoContextData.class,
-					subject: videoContextData.subject,
-					exam: videoContextData.exam,
-					currentTime: currentVideoTime.current,
-					currentTopic: currentTranscript?.topic || "Unknown topic",
-					currentContent: currentTranscript?.text || "",
-					contextTranscripts: videoContextData.contextTranscripts
+				const videoMetadata: VideoMetadata = {
+					sClass: "10th",
+					subject: "Physics",
+					exam: "CBSE Board",
+					currentTime: formatSecondsToMMSS(currentVideoTime.current),
+					currentContent: videoContextData.topicTranscripts || "",
+					contextTranscripts: videoContextData.contextTranscripts.slice(0, 5)
 				};
 
 				// Add enhanced system message to context

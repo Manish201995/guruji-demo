@@ -134,20 +134,22 @@ You are a 'Teacher-Ans-Writer-Agent' class notes writer for Indian students from
                 `,
 			};
 
-			console.log("writerStreamPromise", notesSystemMessage);
+			const writerAgentMessages = [notesSystemMessage as Message, ...messages]
+			console.log("writerAgentMessages", writerAgentMessages);
 			// Start both streams in parallel
 			const writerStreamPromise = client.chat.completions.create({
 				model: config.openai.model,
-				messages: [notesSystemMessage as Message, ...messages],
+				messages: writerAgentMessages,
 				temperature: 0.7,
 				max_tokens: 800,
 				stream: true,
 			});
 
-			console.log("speakerStreamPromise", speakerSystemMessage);
+			const speakerAgentMessages = [speakerSystemMessage as Message, ...messages]
+			console.log("speakerAgentMessages", speakerAgentMessages);
 			const speakerStreamPromise = client.chat.completions.create({
 				model: config.openai.model,
-				messages: [speakerSystemMessage as Message, ...messages],
+				messages: speakerAgentMessages,
 				temperature: 0.7,
 				max_tokens: 800,
 				stream: true,

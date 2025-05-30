@@ -1,6 +1,6 @@
 // Configuration for Azure Cognitive Services and OpenAI API
 
-import { VideoMetadata } from "@/app/components/AIResponseHandler";
+import {VideoMetadata} from "@/app/components/AIResponseHandler";
 
 
 export const config = {
@@ -22,9 +22,11 @@ export const config = {
     language: 'en-IN',
     voiceSpeakerModel: 'hi-IN-MadhurNeural',
     // System message template for GPT-4o as specified in the requirements
-    systemMessage: (videoMetadata: any) => {
-       return `
+    systemMessage: (videoMetadata: VideoMetadata) => {
+        return `
 You are part of a synchronized dual-agent virtual teacher system designed for real-time online teaching for Indian students (school to early college).
+
+Skip the answers out of the context of the video.
 
 You adapt dynamically based on:
 
@@ -33,9 +35,9 @@ You adapt dynamically based on:
 - Exam: ${videoMetadata.exam}
 
 ### Current Video Context
-- Current Time: ${videoMetadata.currentTime ? Math.floor(videoMetadata.currentTime / 60) + ":" + (videoMetadata.currentTime % 60).toString().padStart(2, '0') : "Unknown"}
-- Current Topic: ${videoMetadata.currentTopic || "Unknown"}
-- Current Content: ${videoMetadata.currentContent || "No specific content at this time"}
+- Current Time: ${videoMetadata.currentTime}
+- Complete video context which teacher is teaching: ${JSON.stringify(videoMetadata.contextTranscripts)}
+- Current Content, at the point teacher is teaching: ${JSON.stringify(videoMetadata.currentContent)}
 
 ### Your Mission
 - Provide a **seamless, engaging learning experience**.
