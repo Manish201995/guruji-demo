@@ -20,6 +20,7 @@ export default function AIInputBox({
 	const [recordingTime, setRecordingTime] = useState(0);
 	const [isSpeaking, setIsSpeaking] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [isWorking, setIsWorking] = useState(false);
 	const inputRef = useRef<HTMLTextAreaElement>(null);
 
 	useEffect(() => {
@@ -29,6 +30,14 @@ export default function AIInputBox({
 			}, 300);
 		}
 	}, [isListening]);
+
+	// Stop listening when isWorking becomes false
+	useEffect(() => {
+		if (!isWorking && isRecording) {
+			setIsRecording(false);
+			setRecordingTime(0);
+		}
+	}, [isWorking, isRecording]);
 
 	useEffect(() => {
 		let interval: NodeJS.Timeout;
@@ -44,12 +53,17 @@ export default function AIInputBox({
 
 	const handleMicClick = () => {
 		if (onMicClick) onMicClick();
-		setIsRecording((prev) => !prev);
+		const newRecordingState = !isRecording;
+		setIsRecording(newRecordingState);
+		setIsWorking(newRecordingState);
 		setError(null);
 	};
 
 	const handleSubmit = () => {
 		if (inputText.trim()) {
+			// Stop any ongoing recording/listening before submitting
+			setIsRecording(false);
+			setIsWorking(false);
 			onInputComplete(inputText.trim());
 			setInputText("");
 		}
@@ -66,10 +80,18 @@ export default function AIInputBox({
 		(text: string) => {
 			setInputText(text); // Show recognized text in the textbox
 			setIsRecording(false);
+			setIsWorking(false); // Explicitly stop working when speech is recognized
 			onInputComplete(text); // Trigger response rendering
 		},
 		[onInputComplete]
 	);
+
+	const handleWorkingStateChange = useCallback((working: boolean) => {
+		setIsWorking(working);
+		if (!working) {
+			setIsRecording(false);
+		}
+	}, []);
 
 	return (
 		<div className='transform transition-all duration-500 ease-out animate-in slide-in-from-bottom-4'>
@@ -175,8 +197,8 @@ export default function AIInputBox({
 			{isRecording && (
 				<VoiceInput
 					onSpeechRecognized={handleSpeechRecognized}
-					isWorking={isRecording}
-					setIsWorking={setIsRecording}
+					isWorking={isWorking}
+					setIsWorking={handleWorkingStateChange}
 					isSpeaking={isSpeaking}
 				/>
 			)}

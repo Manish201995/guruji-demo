@@ -17,19 +17,15 @@ export default function Home() {
 
   const playerRef = useRef<YouTubePlayerRef>(null);
   const [videoTime, setVideoTime] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(0);
   const currentVideoTimeRef = useRef(0); // Ref to track current video time for AI component
 
-  // Use YouTube iframe message loop OR interval to track time
-  useEffect(() => {
-		const interval = setInterval(() => {
-			// Simulate video time tracking
-			const newTime = videoTime + 1;
-			setVideoTime(newTime);
-			currentVideoTimeRef.current = newTime; // Update ref for AI component
-		}, 1000);
-
-		return () => clearInterval(interval);
-  }, [videoTime]);
+  // Handle video progress updates from YouTube player
+  const handleVideoProgress = (currentTime: number, duration: number) => {
+		setVideoTime(currentTime);
+		setVideoDuration(duration);
+		currentVideoTimeRef.current = currentTime;
+  };
 
 	const handleAskGuruji = () => {
 		setAppState("listening");
@@ -58,6 +54,7 @@ const handleReset = () => {
 	const handleVideoChange = (video: VideoData) => {
 		setSelectedVideoId(video.id);
 		setVideoTime(0); // Reset video time
+		setVideoDuration(0); // Reset duration
 		currentVideoTimeRef.current = 0; // Reset current video time ref
 		setAppState("initial"); // Reset app state
 		setUserInput(""); // Reset user input
@@ -71,7 +68,9 @@ const handleReset = () => {
 					{/* YouTubePlayer - 60% */}
 					<div className='md:col-span-3 space-y-6 animate-fade-in'>
 						<YouTubePlayer
+							ref={playerRef}
 							videoId={selectedVideoId}
+							onProgressChange={handleVideoProgress}
 							showAskButton={appState === "initial"}
 							onAsk={handleAskGuruji}
 							onVideoChange={handleVideoChange}

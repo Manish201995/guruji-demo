@@ -17,7 +17,9 @@ export function useQuiz() {
 		setError(null);
 
 		fetchQuizByVideoId(HARDCODED_VIDEO_ID)
-			.then(setData)
+			.then((d)=>{
+				setData(d);
+			})
 			.catch(setError)
 			.finally(() => setLoading(false));
 	}, []);

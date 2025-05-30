@@ -25,6 +25,12 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
 }) => {
   const recognizerRef = useRef<ExtendedSpeechRecognizer | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const isWorkingRef = useRef(isWorking);
+
+  // Keep isWorkingRef in sync with isWorking prop
+  useEffect(() => {
+    isWorkingRef.current = isWorking;
+  }, [isWorking]);
 
   const cleanupRecognizer = useCallback(() => {
     const recognizer = recognizerRef.current;
@@ -39,6 +45,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
           }
           recognizer.isClosed = true;
           recognizerRef.current = null;
+          console.log("Speech recognition stopped and cleaned up");
         },
         (err) => {
           console.error("Error stopping recognizer (cleanup):", err);
@@ -55,6 +62,11 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
   }, []);
 
   const initializeRecognizer = useCallback(async () => {
+    // Don't initialize if isWorking is already false
+    if (!isWorkingRef.current) {
+      return;
+    }
+
     await navigator.mediaDevices.getUserMedia({ audio: true });
 
     const audioConfig = SpeechSDK.AudioConfig.fromDefaultMicrophoneInput();
@@ -65,14 +77,23 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
     newRecognizer.recognized = (_, event) => {
       if (event.result.reason === SpeechSDK.ResultReason.RecognizedSpeech) {
         const text = event.result.text.trim();
-        if (text) {
+        if (text && isWorkingRef.current) {
           speakerManager
             .identifySpeaker(audioConfig)
             .then((isValid) => {
-              if (isValid) onSpeechRecognized(text);
-              else console.warn("Unverified speaker.");
+              if (isValid && isWorkingRef.current) {
+                onSpeechRecognized(text);
+              } else if (!isWorkingRef.current) {
+                console.warn("Speech recognized but not working anymore");
+              } else {
+                console.warn("Unverified speaker.");
+              }
             })
-            .catch(() => onSpeechRecognized(text));
+            .catch(() => {
+              if (isWorkingRef.current) {
+                onSpeechRecognized(text);
+              }
+            });
         }
       }
     };
@@ -84,7 +105,18 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
       setIsWorking(false);
     };
 
+    newRecognizer.sessionStopped = () => {
+      console.log("Speech recognition session stopped");
+      setIsWorking(false);
+    };
+
     recognizerRef.current = newRecognizer;
+
+    // Double-check isWorking before starting
+    if (!isWorkingRef.current) {
+      cleanupRecognizer();
+      return;
+    }
 
     newRecognizer.startContinuousRecognitionAsync(
       () => {
@@ -97,16 +129,19 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
         setIsWorking(false);
       }
     );
-  }, [onSpeechRecognized, setIsWorking]);
+  }, [onSpeechRecognized, setIsWorking, cleanupRecognizer]);
 
+  // Main effect that responds to isWorking changes
   useEffect(() => {
     if (isWorking && !recognizerRef.current) {
+      console.log("Starting speech recognition...");
       initializeRecognizer().catch((err) => {
         console.error("Init error:", err);
         setError("Failed to start microphone.");
         setIsWorking(false);
       });
     } else if (!isWorking) {
+      console.log("Stopping speech recognition...");
       cleanupRecognizer();
     }
 
@@ -114,6 +149,13 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
       cleanupRecognizer();
     };
   }, [isWorking, initializeRecognizer, cleanupRecognizer]);
+
+  // Cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      cleanupRecognizer();
+    };
+  }, [cleanupRecognizer]);
 
   return (
     <div className="voice-input">
