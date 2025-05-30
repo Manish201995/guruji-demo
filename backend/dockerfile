@@ -1,0 +1,17 @@
+# -------- base image -----
+FROM --platform=linux/amd64 node:20-bookworm AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --omit=dev
+COPY . .
+RUN npm run build          # compiles NestJS to ./dist
+
+# -------- runtime layer --
+FROM --platform=linux/amd64 node:20-slim
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+# your .env will be injected via Secrets Manager – nothing copied here
+EXPOSE 3000
+CMD ["node", "dist/main.js"]

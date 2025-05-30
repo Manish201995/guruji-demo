@@ -226,7 +226,8 @@ const AIResponseHandler: React.FC<AIResponseHandlerProps> = ({
 						},
 						// Handle completion
 						onComplete: (finalResponse) => {
-							const formattedResponse = `---HINGLISH_EXPLANATION---\n${finalResponse.voiceover}\n\n---ENGLISH_NOTES---\n${finalResponse.notes}`;
+							console.log("Final response:", finalResponse);
+							const formattedResponse = `${finalResponse.notes}`;
 							contextManager.addAssistantMessage(formattedResponse);
 							setIsLoading(false);
 						},

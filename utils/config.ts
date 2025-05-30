@@ -6,7 +6,7 @@ import {VideoMetadata} from "@/app/components/AIResponseHandler";
 export const config = {
     azure: {
         // speechUrl: 'https://eastus.api.cognitive.microsoft.com',
-        speechKey: '30WF4d8j3NffR135INShyh1nAfSD1Ca65Zpzuqb0dvCJNND88NlaJQQJ99BEACYeBjFXJ3w3AAAYACOGCsDM',
+        speechKey: '',
         speechRegion: 'eastus',
 
         // speakerRecognitionUrl: 'https://eastus.api.cognitive.microsoft.com',
@@ -15,7 +15,7 @@ export const config = {
 
     },
     openai: {
-        apiKey: 'sk-z6Gd3ZjZcdbEx_x5zrlI6Q',
+        apiKey: '',
         baseURL: 'https://litellm-data.penpencil.co',
         model: 'gpt4o',
     },
